@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models.account import Account
+from backend.app.models.outbox_event import OutboxEvent
 from backend.app.models.transaction import Transaction
 from backend.app.schemas.transaction import TransactionCreate
 
@@ -97,6 +98,22 @@ def create_transaction(
 
     try:
         db.add(transaction)
+        db.flush()
+
+        outbox_event = OutboxEvent(
+            transaction_id=transaction.id,
+            event_type="TRANSFER_CREATED",
+            payload={
+                "transaction_id": str(transaction.id),
+                "source_account_id": str(source_account.id),
+                "destination_account_id": str(destination_account.id),
+                "amount": float(transaction_data.amount),
+                "currency": "USD"
+            },
+            status="PENDING",
+            attempts=0
+        )
+        db.add(outbox_event)
         db.commit()
         db.refresh(transaction)
     except IntegrityError:

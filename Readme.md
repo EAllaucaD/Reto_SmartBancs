@@ -535,11 +535,11 @@ El desarrollo se realizará progresivamente:
 
 ### Fase 1 — Cuentas
 
-* [x] Modelo Account.
-* [x] GET `/accounts/`.
-* [x] POST `/accounts/`.
-* [x] Validación Pydantic.
-* [x] Manejo de duplicados.
+* [] Modelo Account.
+* [] GET `/accounts/`.
+* [] POST `/accounts/`.
+* [] Validación Pydantic.
+* [] Manejo de duplicados.
 
 ### Fase 2 — Transacciones
 
