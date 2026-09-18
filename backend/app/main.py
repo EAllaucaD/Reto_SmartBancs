@@ -8,6 +8,7 @@ from backend.app.models.account import Account
 
 # Se encarga de importar el router de cuentas desde el módulo accounts para poder manejar las rutas relacionadas con las cuentas.
 from backend.app.routers.accounts import router as accounts_router
+from backend.app.routers.transactions import router as transactions_router
 
 
 app = FastAPI(
@@ -17,6 +18,7 @@ app = FastAPI(
 
 #Se encarga de incluir el router de cuentas en la aplicación FastAPI para que las rutas relacionadas con las cuentas estén disponibles en la API.
 app.include_router(accounts_router)
+app.include_router(transactions_router)
 
 @app.get("/health")
 def health_check():
