@@ -125,6 +125,28 @@ smartbancs-app/
 
 La estructura crecerá progresivamente conforme se implementen las transacciones, Outbox, Bancs Mock, IA y observabilidad.
 
+## Worker y Bancs Mock
+
+El Worker es un servicio independiente ubicado en `worker/`. Consulta
+periódicamente los eventos `PENDING` de `outbox_events`, los reclama con
+`FOR UPDATE SKIP LOCKED` y los envía mediante HTTP a `bancs-mock:8000`.
+
+Para errores recuperables utiliza hasta tres intentos:
+
+```text
+fallo 1 -> 2 segundos
+fallo 2 -> 4 segundos
+fallo 3 -> FAILED
+```
+
+Los errores HTTP 400 se marcan directamente como `FAILED`. Los eventos
+`FAILED` no se eliminan.
+
+Si Bancs Mock responde correctamente y el Worker se detiene antes de confirmar
+`PROCESSED`, el evento puede volver a enviarse. La idempotencia externa de Bancs
+Mock queda pendiente de una fase posterior; esta implementación no modifica ese
+servicio ni agrega persistencia adicional.
+
 ---
 
 # 4. Base de datos
@@ -580,28 +602,7 @@ El desarrollo se realizará progresivamente:
 * [ ] Simulación de errores.
 * [ ] Reintentos.
 
-### Fase 7 — IA
 
-* [ ] Integración Gemini.
-* [ ] Procesamiento asíncrono.
-* [ ] Almacenamiento de recomendaciones.
-* [ ] Manejo de errores.
-
-### Fase 8 — Observabilidad
-
-* [ ] Logs.
-* [ ] Métricas.
-* [ ] OpenTelemetry.
-* [ ] Identificación de errores y latencia.
-
-### Fase 9 — Pruebas y documentación
-
-* [ ] Tests unitarios.
-* [ ] Tests de integración.
-* [ ] Tests de concurrencia.
-* [ ] Evidencias.
-* [ ] Documentación técnica.
-* [ ] Documentación de uso de IA.
 
 ---
 

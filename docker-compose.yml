@@ -30,6 +30,28 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  bancs-mock:
+    build:
+      context: ./bancs-mock
+    container_name: smartbancs-bancs-mock
+    environment:
+      MOCK_ERROR: ${MOCK_ERROR:-}
+    ports:
+      - "8001:8000"
+
+  worker:
+    build:
+      context: ./worker
+    container_name: smartbancs-worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      BANCS_MOCK_URL: http://bancs-mock:8000
+      POLL_INTERVAL_SECONDS: 5
+      HTTP_TIMEOUT_SECONDS: 5
+    depends_on:
+      - postgres
+      - bancs-mock
+
 volumes:
   postgres_data:
   pgadmin_data:
