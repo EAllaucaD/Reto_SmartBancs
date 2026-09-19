@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models.account import Account
+from backend.app.models.ai_recommendation import AIRecommendation
 from backend.app.models.outbox_event import OutboxEvent
 from backend.app.models.transaction import Transaction
 from backend.app.schemas.transaction import TransactionCreate
@@ -41,15 +42,23 @@ def create_transaction(
         transaction_data.source_account_id,
         transaction_data.destination_account_id
     ])
+
     accounts = db.execute(
         select(Account)
         .where(Account.id.in_(account_ids))
         .order_by(Account.id)
         .with_for_update()
     ).scalars().all()
-    accounts_by_id = {account.id: account for account in accounts}
 
-    source_account = accounts_by_id.get(transaction_data.source_account_id)
+    accounts_by_id = {
+        account.id: account
+        for account in accounts
+    }
+
+    source_account = accounts_by_id.get(
+        transaction_data.source_account_id
+    )
+
     destination_account = accounts_by_id.get(
         transaction_data.destination_account_id
     )
@@ -66,13 +75,19 @@ def create_transaction(
             detail="Source and destination accounts must be different"
         )
 
-    if source_account.status != "ACTIVE" or destination_account.status != "ACTIVE":
+    if (
+        source_account.status != "ACTIVE"
+        or destination_account.status != "ACTIVE"
+    ):
         raise HTTPException(
             status_code=400,
             detail="Both accounts must be active"
         )
 
-    if source_account.currency != "USD" or destination_account.currency != "USD":
+    if (
+        source_account.currency != "USD"
+        or destination_account.currency != "USD"
+    ):
         raise HTTPException(
             status_code=400,
             detail="Both accounts must use USD"
@@ -100,6 +115,7 @@ def create_transaction(
         db.add(transaction)
         db.flush()
 
+        # Evento para el Worker de Bancs
         outbox_event = OutboxEvent(
             transaction_id=transaction.id,
             event_type="TRANSFER_CREATED",
@@ -113,9 +129,27 @@ def create_transaction(
             status="PENDING",
             attempts=0
         )
+
         db.add(outbox_event)
+
+        # Trabajo asíncrono para el AI Worker
+        ai_recommendation = AIRecommendation(
+            account_id=source_account.id,
+            recommendation=None,
+            model="gemini-3.6-flash",
+            status="PENDING"
+        )
+
+        db.add(ai_recommendation)
+
+        # Una sola transacción para:
+        # 1. Transferencia
+        # 2. Outbox
+        # 3. Trabajo de IA
         db.commit()
+
         db.refresh(transaction)
+
     except IntegrityError:
         db.rollback()
 
@@ -132,6 +166,7 @@ def create_transaction(
             status_code=500,
             detail="Unable to complete transaction"
         )
+
     except SQLAlchemyError:
         db.rollback()
 
@@ -141,3 +176,4 @@ def create_transaction(
         )
 
     return transaction
+

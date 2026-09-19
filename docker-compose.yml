@@ -52,6 +52,16 @@ services:
       - postgres
       - bancs-mock
 
+  ai-worker:
+    build:
+      context: ./ai-worker
+    container_name: smartbancs-ai-worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
   pgadmin_data:
