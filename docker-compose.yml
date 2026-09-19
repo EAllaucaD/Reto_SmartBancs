@@ -34,8 +34,10 @@ services:
     build:
       context: ./bancs-mock
     container_name: smartbancs-bancs-mock
+
     environment:
       MOCK_ERROR: ${MOCK_ERROR:-}
+
     ports:
       - "8001:8000"
 
@@ -43,11 +45,13 @@ services:
     build:
       context: ./worker
     container_name: smartbancs-worker
+
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       BANCS_MOCK_URL: http://bancs-mock:8000
       POLL_INTERVAL_SECONDS: 5
       HTTP_TIMEOUT_SECONDS: 5
+
     depends_on:
       - postgres
       - bancs-mock
@@ -56,12 +60,40 @@ services:
     build:
       context: ./ai-worker
     container_name: smartbancs-ai-worker
+
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+
     depends_on:
       - postgres
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: smartbancs-prometheus
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: smartbancs-grafana
+
+    ports:
+      - "3000:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    depends_on:
+      - prometheus
 
 volumes:
   postgres_data:
   pgadmin_data:
+  prometheus_data:
+  grafana_data:
