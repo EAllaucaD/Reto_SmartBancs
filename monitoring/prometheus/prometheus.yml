@@ -1,3 +1,4 @@
+# El siguiente archivo es un ejemplo de configuración de Prometheus para monitorear una API de SmartBancs.
 global:
   scrape_interval: 5s
 

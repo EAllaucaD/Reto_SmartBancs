@@ -1,3 +1,6 @@
+# Este archivo configura la conexión a la base de datos utilizando 
+# SQLAlchemy y define la clase base para los modelos de datos.
+
 import os
 
 from dotenv import load_dotenv

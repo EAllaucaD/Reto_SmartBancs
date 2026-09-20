@@ -1,3 +1,6 @@
+#Este archivo define los modelos de datos utilizados en la aplicación, 
+# específicamente el modelo OutboxEvent que representa un evento en la tabla outbox_events de la base de datos.
+
 import uuid
 
 from datetime import datetime

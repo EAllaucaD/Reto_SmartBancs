@@ -1,3 +1,5 @@
+# Este archivo define la aplicación FastAPI y configura las rutas, la instrumentación de métricas y los endpoints de salud.
+
 from fastapi import FastAPI
 
 from sqlalchemy import text

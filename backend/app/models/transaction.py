@@ -1,3 +1,5 @@
+# Este archivo define el modelo de datos para la tabla "transactions" en la base de datos,
+# que representa las transacciones realizadas entre cuentas de clientes en el sistema.
 import uuid
 
 from datetime import datetime

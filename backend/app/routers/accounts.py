@@ -1,3 +1,6 @@
+# Este archivo define las rutas de la API relacionadas con las cuentas de los clientes,
+# incluyendo la obtención de todas las cuentas y la creación de nuevas cuentas.
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session

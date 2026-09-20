@@ -1,3 +1,7 @@
+# Se encarga de manejar la lógica de procesamiento de eventos en la base de datos, 
+# incluyendo la reclamación de eventos pendientes, el marcado de eventos como procesados o fallidos, 
+# y la comunicación con el servicio Bancs Mock para enviar transacciones.
+
 import logging
 import os
 

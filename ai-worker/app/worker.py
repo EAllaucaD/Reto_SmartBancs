@@ -8,13 +8,14 @@ from sqlalchemy import select
 
 from app.models import AIRecommendation
 
-
+# Se encarga de configurar el registro de eventos (logging) para la aplicación.
 logger = logging.getLogger(__name__)
 
 
 MODEL_NAME = "gemini-3.6-flash"
 
 
+# La función `get_gemini_client` se encarga de crear y devolver un cliente para interactuar con la API de Gemini.
 def get_gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
 

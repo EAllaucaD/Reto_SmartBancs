@@ -1,3 +1,6 @@
+#Elsiguiente archivo es un ejemplo de cómo se puede simular un timeout de consultas 
+# en PostgreSQL utilizando Python y la biblioteca psycopg.
+
 import os
 import threading
 import time
@@ -17,7 +20,7 @@ DB_CONFIG = {
     "password": os.getenv("POSTGRES_PASSWORD"),
 }
 
-
+# El objetivo de esta prueba es demostrar cómo funciona el timeout de consultas en PostgreSQL.
 def get_connection(application_name: str):
     return psycopg.connect(
         **DB_CONFIG,

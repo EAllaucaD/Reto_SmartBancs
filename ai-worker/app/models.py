@@ -5,11 +5,15 @@ from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-
+# La clase Base sirve como clase base para todos los modelos de la base de datos. 
+# Proporciona la funcionalidad necesaria para mapear las clases de Python a las tablas de la base de datos.
 class Base(DeclarativeBase):
     pass
 
 
+
+# Se encarga de representar la tabla "ai_recommendations" en la base de datos. 
+# Cada instancia de esta clase corresponde a una fila en la tabla.
 class AIRecommendation(Base):
     __tablename__ = "ai_recommendations"
 

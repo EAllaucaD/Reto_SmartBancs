@@ -1,3 +1,6 @@
+# Este archivo define el modelo de datos para la tabla "accounts" en la base de datos,
+# que representa las cuentas de los clientes en el sistema.
+
 import uuid
 
 from datetime import datetime

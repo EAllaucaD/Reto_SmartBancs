@@ -1,3 +1,7 @@
+#Este archivo contiene pruebas unitarias para la aplicación FastAPI que simula un servicio bancario.    
+# Hace uso de TestClient para enviar solicitudes HTTP a la API y verificar las respuestas,
+# incluyendo casos de éxito, errores de validación y errores simulados del banco.
+
 from fastapi.testclient import TestClient
 
 from app.main import app

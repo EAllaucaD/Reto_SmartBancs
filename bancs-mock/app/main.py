@@ -1,3 +1,8 @@
+# El siguiente código es un ejemplo de cómo se puede simular un timeout de consultas en PostgreSQL 
+# utilizando Python y la biblioteca psycopg. La prueba consiste en dos hilos: 
+# uno que bloquea una fila en la tabla "accounts" y otro que intenta acceder a esa misma fila, 
+# lo que provoca un timeout si la fila está bloqueada durante demasiado tiempo.
+
 import logging
 import os
 

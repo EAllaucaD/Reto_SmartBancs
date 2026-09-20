@@ -1,3 +1,4 @@
+# Este archivo contiene el código principal del worker, que se encarga de procesar eventos de manera continua.
 import logging
 import time
 

@@ -1,3 +1,7 @@
+#El siguiente código es un ejemplo de un proceso ETL (Extract, Transform, Load) que toma un 
+# archivo CSV de transacciones bancarias en bruto, lo limpia y normaliza, y luego separa los
+# registros válidos de los inválidos en dos archivos CSV distintos.
+
 import pandas as pd
 
 

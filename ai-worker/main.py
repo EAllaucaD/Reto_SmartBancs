@@ -3,7 +3,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
+# Se encarga de cargar las variables de entorno desde un archivo .env ubicado en el directorio raíz del proyecto.
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(ROOT_DIR / ".env")
@@ -12,7 +12,8 @@ load_dotenv(ROOT_DIR / ".env")
 from app.database import SessionLocal
 from app.worker import process_one_job
 
-
+# El archivo principal del worker de AI. Se encarga de iniciar el proceso de escucha y procesamiento 
+# de trabajos pendientes en la base de datos.
 def main():
     print("AI Worker iniciado")
 

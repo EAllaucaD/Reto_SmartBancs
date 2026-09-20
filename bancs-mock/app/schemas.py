@@ -1,3 +1,6 @@
+# Este archivo define los esquemas de datos para las solicitudes y 
+# respuestas de transacciones bancarias en la API mock de Bancs.
+
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID

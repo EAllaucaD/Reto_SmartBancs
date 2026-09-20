@@ -1,3 +1,5 @@
+# Este archivo define el modelo de datos para la tabla "ai_recommendations" en la base de datos,
+# que representa las recomendaciones generadas por el sistema de inteligencia artificial para las cuentas de los clientes
 import uuid
 from datetime import datetime, timezone
 

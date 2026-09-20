@@ -1,3 +1,5 @@
+# Este archivo define las rutas de la API relacionadas con las transacciones entre cuentas de clientes,
+# incluyendo la creación de nuevas transacciones y la verificación de idempotencia.
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException

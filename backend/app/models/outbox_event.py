@@ -1,3 +1,6 @@
+# Este archivo define el modelo de datos para la tabla "outbox_events" en la base de datos,
+# que representa los eventos pendientes de procesamiento en el sistema.
+
 import uuid
 
 from datetime import datetime
