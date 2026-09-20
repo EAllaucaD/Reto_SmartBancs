@@ -624,11 +624,86 @@ Si la configuración es correcta, Grafana podrá consultar las métricas almacen
 
 A partir de esta conexión se pueden crear dashboards para visualizar las métricas de FastAPI.
 
+## 16.4 Logs y trazabilidad
+
+Los componentes principales utilizan logging para registrar operaciones, errores y el flujo de una transacción.
+
+El Worker registra, entre otros:
+
+* `transaction_id` y `event_id`.
+* Eventos reclamados desde el Outbox.
+* Intentos de sincronización.
+* Comunicación con Bancs.
+* Respuestas exitosas y errores.
+* Reintentos y cambios de estado del Outbox.
+
+Los logs pueden visualizarse directamente desde la consola mediante Docker:
+
+```bash
+docker compose logs -f worker
+docker compose logs -f bancs-mock
+docker compose logs -f ai-worker
+```
+
+También se pueden consultar únicamente los últimos registros:
+
+```bash
+docker compose logs worker --tail=30
+docker compose logs bancs-mock --tail=30
+docker compose logs ai-worker --tail=30
+```
+
+Ejemplo de flujo registrado por el Worker:
+
+```text
+Evento reclamado
+    ↓
+Intento de sincronización
+    ↓
+Enviando transacción a Bancs
+    ↓
+HTTP 200 OK
+    ↓
+Bancs procesó correctamente
+    ↓
+Outbox → PROCESSED
+```
+
+Esto permite seguir una transacción entre FastAPI, Outbox, Worker y Bancs mediante su `transaction_id`.
+
 ---
+
+## 16.5 Identificación de bloqueos y DB Timeout
+
+El proyecto incluye una prueba controlada de bloqueo de PostgreSQL en:
+
+```text
+tests/test_db_timeout.py
+```
+
+La prueba utiliza `SELECT ... FOR UPDATE` para generar un bloqueo controlado y configura `statement_timeout` en una segunda conexión.
+
+Durante la prueba se consultan:
+
+```sql
+pg_stat_activity
+pg_blocking_pids()
+```
+
+Esto permite identificar:
+
+* PID del proceso bloqueante.
+* PID del proceso afectado.
+* Consulta que mantiene el bloqueo.
+* Consulta que está esperando.
+* Evento de espera de PostgreSQL.
+
+La prueba demuestra que PostgreSQL cancela la consulta cuando supera el tiempo configurado y que el bloqueo puede ser identificado mediante las vistas de diagnóstico.
+
 
 # 17. Pruebas
 
-## Prueba de concurrencia
+#### Prueba de concurrencia
 
 Ejecutar:
 
@@ -638,9 +713,17 @@ python test_concurrency.py
 
 Esta prueba realiza transferencias concurrentes y verifica la consistencia de los saldos.
 
----
+#### Prueba de DB Timeout
 
-## Prueba de carga
+Ejecutar:
+
+```bash
+python tests/test_db_timeout.py
+```
+
+La prueba simula un bloqueo controlado de una fila y permite identificar el proceso bloqueante mediante PostgreSQL.
+
+#### Prueba de carga
 
 Instalar Locust:
 
@@ -672,11 +755,11 @@ P95 = 1.9 segundos
 
 Al aumentar la concurrencia a 40 usuarios, el P95 observado fue de aproximadamente 2.8 segundos.
 
-Estos resultados corresponden al entorno local utilizado durante el desarrollo. **No representan una capacidad demostrada de 10.000 TPS.**
+Estos resultados corresponden al entorno local utilizado durante el desarrollo. No representan una capacidad demostrada de 10.000 TPS.
 
 El objetivo de 10.000 TPS se aborda como requisito de escalabilidad mediante una arquitectura que podría distribuir la carga entre múltiples instancias de API y Workers, junto con una infraestructura y base de datos adecuadamente dimensionadas.
 
----
+
 
 # 18. Estructura del proyecto
 
