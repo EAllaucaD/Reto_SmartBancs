@@ -1,5 +1,11 @@
 from fastapi import FastAPI
+
 from sqlalchemy import text
+
+# Se encarga de importar la clase Instrumentator para generar métricas de la API
+# y exponerlas en el endpoint /metrics para Prometheus.
+from prometheus_fastapi_instrumentator import Instrumentator
+
 # Se encarga de importar la clase engine desde el módulo database para establecer la conexión con la base de datos.
 from backend.app.database import engine
 
@@ -9,14 +15,23 @@ from backend.app.models.account import Account
 # Se encarga de importar el router de cuentas desde el módulo accounts para poder manejar las rutas relacionadas con las cuentas.
 from backend.app.routers.accounts import router as accounts_router
 
+from backend.app.routers.transactions import router as transactions_router
+
 
 app = FastAPI(
     title="SmartBancs API",
     version="0.1.0"
 )
 
-#Se encarga de incluir el router de cuentas en la aplicación FastAPI para que las rutas relacionadas con las cuentas estén disponibles en la API.
+# Se encarga de instrumentar la aplicación FastAPI para generar métricas HTTP
+# y exponerlas en /metrics para que Prometheus pueda recopilarlas.
+Instrumentator().instrument(app).expose(app)
+
+# Se encarga de incluir el router de cuentas en la aplicación FastAPI para que las rutas relacionadas con las cuentas estén disponibles en la API.
 app.include_router(accounts_router)
+
+app.include_router(transactions_router)
+
 
 @app.get("/health")
 def health_check():
@@ -34,3 +49,4 @@ def database_health_check():
         "status": "ok",
         "database": "connected"
     }
+
