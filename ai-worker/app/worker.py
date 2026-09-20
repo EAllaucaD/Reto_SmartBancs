@@ -1,10 +1,15 @@
+import logging
 import os
+
 from datetime import datetime, timezone
 
 from google import genai
 from sqlalchemy import select
 
 from app.models import AIRecommendation
+
+
+logger = logging.getLogger(__name__)
 
 
 MODEL_NAME = "gemini-3.6-flash"
@@ -47,10 +52,20 @@ def process_one_job(db):
     if ai_job is None:
         return False
 
-    print(f"Procesando AI job: {ai_job.id}")
+    logger.info(
+        "AI job iniciado | job_id=%s | account_id=%s",
+        ai_job.id,
+        ai_job.account_id
+    )
 
     try:
         client = get_gemini_client()
+
+        logger.info(
+            "Llamando a Gemini | job_id=%s | model=%s",
+            ai_job.id,
+            MODEL_NAME
+        )
 
         response = client.models.generate_content(
             model=MODEL_NAME,
@@ -69,7 +84,11 @@ def process_one_job(db):
 
         db.commit()
 
-        print(f"AI job completado: {ai_job.id}")
+        logger.info(
+            "AI job completado | job_id=%s | model=%s",
+            ai_job.id,
+            MODEL_NAME
+        )
 
     except Exception as error:
         db.rollback()
@@ -83,6 +102,10 @@ def process_one_job(db):
 
             db.commit()
 
-        print(f"Error procesando AI job: {error}")
+        logger.exception(
+            "Error procesando AI job | job_id=%s",
+            ai_job.id if ai_job is not None else "unknown"
+        )
 
     return True
+

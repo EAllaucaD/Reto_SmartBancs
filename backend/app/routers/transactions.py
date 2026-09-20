@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import APIRouter, Depends, Header, HTTPException
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -9,6 +12,9 @@ from backend.app.models.ai_recommendation import AIRecommendation
 from backend.app.models.outbox_event import OutboxEvent
 from backend.app.models.transaction import Transaction
 from backend.app.schemas.transaction import TransactionCreate
+
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(
@@ -23,6 +29,7 @@ def create_transaction(
     db: Session = Depends(get_db),
     idempotency_key: str = Header(..., alias="Idempotency-Key")
 ):
+
     if not idempotency_key.strip() or len(idempotency_key) > 64:
         raise HTTPException(
             status_code=400,
@@ -36,6 +43,11 @@ def create_transaction(
     ).scalar_one_or_none()
 
     if existing_transaction is not None:
+        logger.info(
+            "Transacción existente | transaction_id=%s | idempotency_key=%s",
+            existing_transaction.id,
+            idempotency_key
+        )
         return existing_transaction
 
     account_ids = sorted([
@@ -115,6 +127,12 @@ def create_transaction(
         db.add(transaction)
         db.flush()
 
+        logger.info(
+            "Transferencia creada | transaction_id=%s | amount=%s",
+            transaction.id,
+            transaction.amount
+        )
+
         # Evento para el Worker de Bancs
         outbox_event = OutboxEvent(
             transaction_id=transaction.id,
@@ -132,6 +150,12 @@ def create_transaction(
 
         db.add(outbox_event)
 
+        logger.info(
+            "Outbox creado | transaction_id=%s | event_type=%s",
+            transaction.id,
+            outbox_event.event_type
+        )
+
         # Trabajo asíncrono para el AI Worker
         ai_recommendation = AIRecommendation(
             account_id=source_account.id,
@@ -147,11 +171,20 @@ def create_transaction(
         # 2. Outbox
         # 3. Trabajo de IA
         db.commit()
-
         db.refresh(transaction)
+
+        logger.info(
+            "Transferencia completada | transaction_id=%s",
+            transaction.id
+        )
 
     except IntegrityError:
         db.rollback()
+
+        logger.exception(
+            "Error de integridad | idempotency_key=%s",
+            idempotency_key
+        )
 
         existing_transaction = db.execute(
             select(Transaction).where(
@@ -169,6 +202,11 @@ def create_transaction(
 
     except SQLAlchemyError:
         db.rollback()
+
+        logger.exception(
+            "Error de base de datos | idempotency_key=%s",
+            idempotency_key
+        )
 
         raise HTTPException(
             status_code=500,

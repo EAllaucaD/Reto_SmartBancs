@@ -1,3 +1,4 @@
+import logging
 import os
 
 from datetime import datetime, timedelta, timezone
@@ -9,6 +10,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import OutboxEvent
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 
 MAX_ATTEMPTS = 3
@@ -33,6 +42,13 @@ def claim_pending_event(db: Session) -> OutboxEvent | None:
 
     event.status = "PROCESSING"
     db.commit()
+
+    logger.info(
+        "Evento reclamado | transaction_id=%s | event_id=%s",
+        event.transaction_id,
+        event.id
+    )
+
     return event
 
 
@@ -45,6 +61,12 @@ def mark_processed(db: Session, event_id: Any) -> None:
     event.processed_at = datetime.now(timezone.utc)
     event.last_error = None
     db.commit()
+
+    logger.info(
+        "Outbox marcado como PROCESSED | transaction_id=%s | event_id=%s",
+        event.transaction_id,
+        event.id
+    )
 
 
 def mark_failed(
@@ -68,6 +90,16 @@ def mark_failed(
     event.last_error = error_message
     db.commit()
 
+    logger.warning(
+        "Outbox actualizado | transaction_id=%s | event_id=%s | "
+        "status=%s | attempt=%s | error=%s",
+        event.transaction_id,
+        event.id,
+        event.status,
+        event.attempts,
+        error_message
+    )
+
 
 def increment_attempt(db: Session, event_id: Any) -> int | None:
     event = db.get(OutboxEvent, event_id)
@@ -76,6 +108,13 @@ def increment_attempt(db: Session, event_id: Any) -> int | None:
 
     event.attempts += 1
     db.commit()
+
+    logger.info(
+        "Intento de sincronización | transaction_id=%s | attempt=%s",
+        event.transaction_id,
+        event.attempts
+    )
+
     return event.attempts
 
 
@@ -93,16 +132,39 @@ def process_event(
     if attempts is None:
         return
 
+    logger.info(
+        "Procesando evento Bancs | transaction_id=%s | attempt=%s",
+        event.transaction_id,
+        attempts
+    )
+
     try:
+        logger.info(
+            "Enviando transacción a Bancs | transaction_id=%s",
+            event.transaction_id
+        )
+
         response = client.post(
             f"{bancs_mock_url}/bank-transactions",
             json=build_request_payload(event)
         )
+
         response.raise_for_status()
+
     except httpx.HTTPStatusError as error:
         status_code = error.response.status_code
         error_message = f"Bancs Mock returned HTTP {status_code}"
+
+        logger.error(
+            "Bancs respondió con error | transaction_id=%s | "
+            "status=%s | attempt=%s",
+            event.transaction_id,
+            status_code,
+            attempts
+        )
+
         retry = status_code in RECOVERABLE_STATUS_CODES or status_code >= 500
+
         mark_failed(
             db,
             event.id,
@@ -110,14 +172,30 @@ def process_event(
             retry=retry and attempts < MAX_ATTEMPTS
         )
         return
+
     except (httpx.TimeoutException, httpx.RequestError) as error:
+        error_message = str(error) or error.__class__.__name__
+
+        logger.exception(
+            "Error de comunicación con Bancs | transaction_id=%s | "
+            "attempt=%s",
+            event.transaction_id,
+            attempts
+        )
+
         mark_failed(
             db,
             event.id,
-            str(error) or error.__class__.__name__,
+            error_message,
             retry=attempts < MAX_ATTEMPTS
         )
         return
+
+    logger.info(
+        "Bancs procesó correctamente | transaction_id=%s | attempt=%s",
+        event.transaction_id,
+        attempts
+    )
 
     mark_processed(db, event.id)
 
@@ -128,21 +206,34 @@ def process_once(
     timeout_seconds: float
 ) -> bool:
     db = session_factory()
+
     try:
         event = claim_pending_event(db)
+
         if event is None:
             return False
 
         with httpx.Client(timeout=timeout_seconds) as client:
-            process_event(db, event, client, bancs_mock_url)
+            process_event(
+                db,
+                event,
+                client,
+                bancs_mock_url
+            )
+
         return True
+
     finally:
         db.close()
 
 
 def get_settings() -> tuple[str, float, float]:
     return (
-        os.getenv("BANCS_MOCK_URL", "http://bancs-mock:8000").rstrip("/"),
+        os.getenv(
+            "BANCS_MOCK_URL",
+            "http://bancs-mock:8000"
+        ).rstrip("/"),
         float(os.getenv("POLL_INTERVAL_SECONDS", "5")),
         float(os.getenv("HTTP_TIMEOUT_SECONDS", "5"))
     )
+
