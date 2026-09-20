@@ -33,7 +33,6 @@ El objetivo no es presentar una plataforma bancaria lista para producción, sino
 
 # 2. Arquitectura
 
-
 Flujo principal:
 
 ```text
@@ -151,7 +150,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 `MOCK_ERROR` debe permanecer vacío para el funcionamiento normal.
 
-Valores disponibles para pruebas:
+Valor disponible para pruebas:
 
 ```text
 503
@@ -219,6 +218,7 @@ Crear el entorno virtual:
 
 ```powershell
 python -m venv .venv
+
 .\.venv\Scripts\Activate.ps1
 ```
 
@@ -497,7 +497,56 @@ etl/notebooks/exploracion_data.ipynb
 
 ---
 
-# 15. Observabilidad
+# 15. Administración de PostgreSQL con pgAdmin
+
+pgAdmin está disponible en:
+
+```text
+http://localhost:5050
+```
+
+Las credenciales corresponden a las configuradas en `.env`:
+
+```text
+Email: admin@smartbancs.com
+Password: change_me
+```
+
+Para conectarse a PostgreSQL desde pgAdmin:
+
+1. Abrir pgAdmin.
+2. Iniciar sesión con las credenciales configuradas.
+3. Seleccionar **Add New Server**.
+4. En **General**, asignar un nombre, por ejemplo:
+
+```text
+SmartBancs PostgreSQL
+```
+
+5. En **Connection** utilizar:
+
+```text
+Host: postgres
+Port: 5432
+Database: smartbancs
+Username: smartbancs
+Password: change_me
+```
+
+El valor `postgres` se utiliza como host porque pgAdmin y PostgreSQL se ejecutan dentro de la misma red de Docker Compose.
+
+Desde pgAdmin se pueden consultar las tablas:
+
+```text
+accounts
+transactions
+outbox_events
+ai_recommendations
+```
+
+---
+
+# 16. Observabilidad
 
 FastAPI expone métricas en:
 
@@ -517,9 +566,67 @@ Se pueden observar, entre otras:
 * latencia promedio;
 * P95 de latencia.
 
+## 16.1 Prometheus
+
+Prometheus está disponible en:
+
+```text
+http://localhost:9090
+```
+
+Desde su interfaz se pueden consultar directamente las métricas expuestas por FastAPI.
+
+Por ejemplo:
+
+```promql
+sum(http_requests_total)
+```
+
 ---
 
-# 16. Pruebas
+## 16.2 Grafana
+
+Grafana está disponible en:
+
+```text
+http://localhost:3000
+```
+
+En una instalación inicial de Grafana, las credenciales por defecto son:
+
+```text
+Usuario: admin
+Contraseña: admin
+```
+
+Grafana puede solicitar cambiar la contraseña durante el primer acceso.
+
+## 16.3 Conectar Grafana con Prometheus
+
+Para agregar Prometheus como fuente de datos:
+
+1. Entrar a Grafana.
+2. Ir a **Connections**.
+3. Seleccionar **Data sources**.
+4. Seleccionar **Add data source**.
+5. Seleccionar **Prometheus**.
+6. En **Prometheus server URL** utilizar:
+
+```text
+http://prometheus:9090
+```
+
+> Se utiliza `prometheus` y no `localhost` porque Grafana y Prometheus se ejecutan como servicios dentro de Docker Compose.
+
+7. Seleccionar **Save & test**.
+
+Si la configuración es correcta, Grafana podrá consultar las métricas almacenadas en Prometheus.
+
+A partir de esta conexión se pueden crear dashboards para visualizar las métricas de FastAPI.
+
+---
+
+# 17. Pruebas
 
 ## Prueba de concurrencia
 
@@ -571,20 +678,21 @@ El objetivo de 10.000 TPS se aborda como requisito de escalabilidad mediante una
 
 ---
 
-# 17. Estructura del proyecto
+# 18. Estructura del proyecto
 
 ```text
 Reto_SmartBancs/
+
 │
-├── backend/             # API FastAPI
-├── worker/              # Worker de Outbox/Bancs
-├── bancs-mock/          # Simulación de Bancs
-├── ai-worker/           # Procesamiento de IA
-├── etl/                 # Procesamiento ETL
-├── monitoring/          # Configuración Prometheus
-├── database/            # Recursos de BD
-├── load_test.py         # Prueba de carga
-├── test_concurrency.py  # Prueba concurrente
+├── backend/              # API FastAPI
+├── worker/               # Worker de Outbox/Bancs
+├── bancs-mock/           # Simulación de Bancs
+├── ai-worker/            # Procesamiento de IA
+├── etl/                  # Procesamiento ETL
+├── monitoring/           # Configuración Prometheus
+├── database/             # Recursos de BD
+├── load_test.py          # Prueba de carga
+├── test_concurrency.py   # Prueba concurrente
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore
@@ -593,7 +701,7 @@ Reto_SmartBancs/
 
 ---
 
-# 18. Detener el proyecto
+# 19. Detener el proyecto
 
 Detener los servicios:
 
@@ -611,7 +719,7 @@ docker compose down -v
 
 ---
 
-# 19. Limitaciones
+# 20. Limitaciones
 
 Este proyecto es un **MVP desarrollado para evaluación técnica**.
 
@@ -631,11 +739,11 @@ Estos aspectos forman parte de las consideraciones para una implementación prod
 
 ## Referencias
 
-* [FastAPI](https://fastapi.tiangolo.com/)
-* [PostgreSQL](https://www.postgresql.org/docs/)
-* [Docker Compose](https://docs.docker.com/compose/)
-* [Prometheus](https://prometheus.io/docs/)
-* [Grafana](https://grafana.com/docs/)
-* [Locust](https://docs.locust.io/)
-* [Pandas](https://pandas.pydata.org/docs/)
-* [Google Gemini API](https://ai.google.dev/)
+* FastAPI
+* PostgreSQL
+* Docker Compose
+* Prometheus
+* Grafana
+* Locust
+* Pandas
+* Google Gemini API
