@@ -1,344 +1,40 @@
 # SmartBancs App
 
-MVP de una plataforma bancaria desarrollada como parte de un reto técnico.
+MVP de una plataforma bancaria desarrollado para el reto técnico **TCS NextGen Engineers**.
 
-El objetivo es construir una aplicación capaz de procesar transferencias bancarias de forma segura, manejar concurrencia, desacoplar la integración con un sistema bancario legado llamado Bancs y procesar recomendaciones de Inteligencia Artificial de forma asíncrona.
-
-El proyecto busca demostrar criterios de:
-
-* Desarrollo de software.
-* Diseño de arquitectura.
-* Bases de datos transaccionales.
-* Concurrencia.
-* Integración con sistemas legados.
-* Inteligencia Artificial.
-* Observabilidad.
-* Pruebas.
-* Dockerización.
-* Seguridad.
+El proyecto demuestra el diseño e implementación de una plataforma capaz de procesar transferencias bancarias bajo concurrencia, mantener consistencia transaccional, desacoplar la integración con un sistema bancario legado mediante el patrón **Outbox**, procesar recomendaciones de Inteligencia Artificial de forma asíncrona e incorporar observabilidad y pruebas de carga.
 
 ---
 
-## 1. Stack tecnológico
+# 1. ¿Qué demuestra el proyecto?
 
-### Backend
+El MVP integra los siguientes conceptos:
 
-* Python
-* FastAPI
-* SQLAlchemy
-* Pydantic
+* API REST para operaciones bancarias.
+* PostgreSQL como base de datos transaccional.
+* Control de concurrencia mediante bloqueo de filas.
+* Prevención de transferencias duplicadas mediante idempotencia.
+* Patrón **Transactional Outbox**.
+* Worker independiente para integración con Bancs.
+* Bancs Mock para simular el sistema legado.
+* Reintentos ante errores temporales de Bancs.
+* Procesamiento de IA desacoplado mediante un AI Worker.
+* Integración con Google Gemini.
+* Procesamiento ETL con Python y Pandas.
+* Métricas HTTP mediante Prometheus.
+* Visualización mediante Grafana.
+* Pruebas automatizadas y concurrentes.
+* Pruebas de carga mediante Locust.
+* Ejecución de los servicios mediante Docker Compose.
 
-### Base de datos
-
-* PostgreSQL
-
-### Contenedores
-
-* Docker
-* Docker Compose
-
-### IA
-
-* Gemini API
-
-La API Key se manejará mediante una variable de entorno:
-
-```text
-GEMINI_API_KEY
-```
-
-Nunca se debe almacenar la clave real en GitHub.
-
-### Datos
-
-* Python
-* Pandas
-
-Se utilizará posteriormente para procesos de limpieza y preparación de datos.
-
-### Observabilidad
-
-Se contempla utilizar:
-
-* Logs estructurados.
-* Métricas.
-* OpenTelemetry.
+El objetivo no es presentar una plataforma bancaria lista para producción, sino demostrar criterios de arquitectura, desarrollo, integración, concurrencia, observabilidad y escalabilidad.
 
 ---
 
-## 2. Estado actual del proyecto
+# 2. Arquitectura
 
-Actualmente se encuentra implementado:
 
-* PostgreSQL mediante Docker Compose.
-* pgAdmin.
-* Conexión FastAPI → PostgreSQL.
-* Endpoint `/health`.
-* Endpoint `/health/db`.
-* Modelo SQLAlchemy `Account`.
-* Endpoint para consultar cuentas.
-* Endpoint para crear cuentas.
-* Validación mediante Pydantic.
-* Manejo de cuentas duplicadas.
-* Variables de entorno para la conexión a PostgreSQL.
-
-Endpoints actuales:
-
-```text
-GET  /health
-GET  /health/db
-GET  /accounts/
-POST /accounts/
-```
-
----
-
-## 3. Estructura actual
-
-```text
-smartbancs-app/
-│
-├── backend/
-│   ├── app/
-│   │   ├── models/
-│   │   │   └── account.py
-│   │   │
-│   │   ├── routers/
-│   │   │   └── accounts.py
-│   │   │
-│   │   ├── schemas/
-│   │   │   └── account.py
-│   │   │
-│   │   ├── database.py
-│   │   └── main.py
-│   │
-│   └── requirements.txt
-│
-├── database/
-│
-├── .env
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-└── README.md
-```
-
-La estructura crecerá progresivamente conforme se implementen las transacciones, Outbox, Bancs Mock, IA y observabilidad.
-
-## Worker y Bancs Mock
-
-El Worker es un servicio independiente ubicado en `worker/`. Consulta
-periódicamente los eventos `PENDING` de `outbox_events`, los reclama con
-`FOR UPDATE SKIP LOCKED` y los envía mediante HTTP a `bancs-mock:8000`.
-
-Para errores recuperables utiliza hasta tres intentos:
-
-```text
-fallo 1 -> 2 segundos
-fallo 2 -> 4 segundos
-fallo 3 -> FAILED
-```
-
-Los errores HTTP 400 se marcan directamente como `FAILED`. Los eventos
-`FAILED` no se eliminan.
-
-Si Bancs Mock responde correctamente y el Worker se detiene antes de confirmar
-`PROCESSED`, el evento puede volver a enviarse. La idempotencia externa de Bancs
-Mock queda pendiente de una fase posterior; esta implementación no modifica ese
-servicio ni agrega persistencia adicional.
-
----
-
-# 4. Base de datos
-
-La base de datos actual contiene las siguientes tablas:
-
-```text
-accounts
-transactions
-outbox_events
-ai_recommendations
-```
-
-## accounts
-
-Representa las cuentas bancarias.
-
-Campos principales:
-
-```text
-id
-account_number
-customer_ref
-balance
-currency
-status
-created_at
-updated_at
-```
-
-El saldo inicial es controlado por el backend y no por el cliente de la API.
-
----
-
-## transactions
-
-Representará las transferencias entre cuentas.
-
-Campos:
-
-```text
-id
-idempotency_key
-source_account_id
-destination_account_id
-amount
-currency
-status
-created_at
-completed_at
-```
-
-Estados:
-
-```text
-PENDING
-COMPLETED
-FAILED
-```
-
----
-
-## outbox_events
-
-Almacenará eventos que posteriormente serán procesados por un worker para integrarse con Bancs.
-
-Campos:
-
-```text
-id
-transaction_id
-event_type
-payload
-status
-attempts
-next_attempt_at
-last_error
-created_at
-processed_at
-```
-
-Estados:
-
-```text
-PENDING
-PROCESSING
-PROCESSED
-FAILED
-```
-
----
-
-## ai_recommendations
-
-Almacenará las recomendaciones generadas mediante Inteligencia Artificial.
-
-Campos:
-
-```text
-id
-account_id
-recommendation
-model
-status
-error_message
-created_at
-updated_at
-```
-
-Estados:
-
-```text
-PENDING
-COMPLETED
-FAILED
-```
-
----
-
-# 5. Arquitectura objetivo
-
-La arquitectura final esperada será:
-
-```text
-                         ┌──────────────────┐
-                         │     Cliente      │
-                         │ Postman / HTTP   │
-                         └────────┬─────────┘
-                                  │
-                                  ▼
-                         ┌──────────────────┐
-                         │     FastAPI      │
-                         │ Transaction API  │
-                         └────────┬─────────┘
-                                  │
-                    ┌─────────────┼─────────────┐
-                    │             │             │
-                    ▼             ▼             ▼
-             ┌────────────┐ ┌────────────┐ ┌─────────────┐
-             │ PostgreSQL │ │   Outbox   │ │ Async AI    │
-             │            │ │   Events   │ │ Processing  │
-             └────────────┘ └─────┬──────┘ └──────┬──────┘
-                                  │               │
-                                  ▼               ▼
-                           ┌────────────┐  ┌────────────┐
-                           │ Bancs      │  │ Gemini API │
-                           │ Worker     │  │            │
-                           └─────┬──────┘  └────────────┘
-                                 │
-                                 ▼
-                           ┌────────────┐
-                           │ Bancs Mock │
-                           └────────────┘
-```
-
----
-
-# 6. Bancs
-
-Bancs representa un sistema bancario legado.
-
-No se instalará Bancs real.
-
-Para el MVP se utilizará un Mock de Bancs que permita demostrar la integración.
-
-La arquitectura debe evitar realizar llamadas directas y síncronas a Bancs durante una transferencia.
-
-El flujo esperado será:
-
-```text
-SmartBancs
-     │
-     ▼
-PostgreSQL
-     │
-     ▼
-Outbox Event
-     │
-     ▼
-Worker
-     │
-     ▼
-Bancs Mock
-```
-
-Esto permite desacoplar el procesamiento de transferencias del sistema legado.
-
----
-
-# 7. Flujo de una transferencia
-
-El flujo principal será:
+Flujo principal:
 
 ```text
 Cliente
@@ -347,63 +43,349 @@ Cliente
 FastAPI
    │
    ▼
-Validación
+PostgreSQL
    │
-   ▼
-Idempotencia
+   ├── Transaction
    │
-   ▼
-BEGIN
-   │
-   ▼
-Bloqueo de cuentas
-   │
-   ▼
-Verificación de saldo
-   │
-   ▼
-Débito cuenta origen
-   │
-   ▼
-Crédito cuenta destino
-   │
-   ▼
-Crear transaction
-   │
-   ▼
-Crear evento Outbox
-   │
-   ▼
-COMMIT
-   │
-   ▼
-Respuesta
+   └── Outbox Event
+          │
+          ▼
+        Worker
+          │
+          ▼
+      Bancs Mock
 ```
 
-La recomendación de IA se procesará posteriormente de forma asíncrona.
+Procesamiento adicional:
+
+```text
+PostgreSQL ──► AI Worker ──► Gemini API
+     │
+     └────────► Prometheus ──► Grafana
+```
+
+El procesamiento de Bancs y de Inteligencia Artificial se mantiene fuera del camino crítico de la transferencia.
 
 ---
 
-# 8. Concurrencia
+# 3. Tecnologías
 
-El sistema debe considerar múltiples transferencias ejecutándose simultáneamente.
+| Componente        | Tecnología              |
+| ----------------- | ----------------------- |
+| Backend           | Python + FastAPI        |
+| ORM               | SQLAlchemy              |
+| Validación        | Pydantic                |
+| Base de datos     | PostgreSQL 16           |
+| Integración Bancs | Outbox + Worker         |
+| Bancs             | Bancs Mock              |
+| IA                | Google Gemini API       |
+| ETL               | Python + Pandas         |
+| Métricas          | Prometheus              |
+| Dashboards        | Grafana                 |
+| Pruebas           | Pytest                  |
+| Carga             | Locust                  |
+| Contenedores      | Docker + Docker Compose |
 
-El problema principal es evitar condiciones de carrera.
+---
+
+# 4. Requisitos
+
+Antes de ejecutar el proyecto se necesita:
+
+* Git.
+* Python 3.11 o superior.
+* Docker Desktop.
+* Docker Compose.
+* Una API Key de Google Gemini para ejecutar el AI Worker.
+
+Comprobar las instalaciones:
+
+```bash
+git --version
+python --version
+docker --version
+docker compose version
+```
+
+---
+
+# 5. Instalación
+
+## 5.1 Clonar el repositorio
+
+```bash
+git clone https://github.com/EAllaucaD/Reto_SmartBancs.git
+cd Reto_SmartBancs
+```
+
+## 5.2 Configurar variables de entorno
+
+Crear `.env` a partir del archivo de ejemplo.
+
+### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### Linux / macOS
+
+```bash
+cp .env.example .env
+```
+
+Editar `.env`:
+
+```env
+POSTGRES_DB=smartbancs
+POSTGRES_USER=smartbancs
+POSTGRES_PASSWORD=change_me
+
+PGADMIN_DEFAULT_EMAIL=admin@smartbancs.com
+PGADMIN_DEFAULT_PASSWORD=change_me
+
+MOCK_ERROR=
+
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+`MOCK_ERROR` debe permanecer vacío para el funcionamiento normal.
+
+Valores disponibles para pruebas:
+
+```text
+503
+```
+
+La API Key de Gemini debe mantenerse únicamente en `.env`.
+
+**No se debe subir `.env` al repositorio.**
+
+---
+
+# 6. Levantar los servicios
+
+Desde la raíz del proyecto:
+
+```bash
+docker compose up -d --build
+```
+
+Comprobar el estado:
+
+```bash
+docker compose ps
+```
+
+Para consultar los logs:
+
+```bash
+docker compose logs -f
+```
+
+Logs de servicios específicos:
+
+```bash
+docker compose logs -f worker
+```
+
+```bash
+docker compose logs -f ai-worker
+```
+
+```bash
+docker compose logs -f bancs-mock
+```
+
+Docker Compose levanta:
+
+* PostgreSQL.
+* pgAdmin.
+* Bancs Mock.
+* Worker.
+* AI Worker.
+* Prometheus.
+* Grafana.
+
+FastAPI se ejecuta actualmente desde el entorno Python local.
+
+---
+
+# 7. Ejecutar FastAPI
+
+Crear el entorno virtual:
+
+### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Instalar dependencias:
+
+```powershell
+pip install -r backend/requirements.txt
+```
+
+Ejecutar:
+
+```powershell
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+La API estará disponible en:
+
+```text
+http://localhost:8000
+```
+
+Swagger:
+
+```text
+http://localhost:8000/docs
+```
+
+Redoc:
+
+```text
+http://localhost:8000/redoc
+```
+
+> El entorno `.venv` solamente se utiliza para ejecutar FastAPI y scripts Python. Docker Compose funciona independientemente del estado del entorno virtual.
+
+---
+
+# 8. Servicios disponibles
+
+| Servicio      | Dirección                | Uso                     |
+| ------------- | ------------------------ | ----------------------- |
+| FastAPI       | `localhost:8000`         | API principal           |
+| Swagger       | `localhost:8000/docs`    | Pruebas de API          |
+| Metrics       | `localhost:8000/metrics` | Métricas                |
+| Bancs Mock    | `localhost:8001`         | Sistema legado simulado |
+| Bancs Swagger | `localhost:8001/docs`    | Pruebas del Mock        |
+| PostgreSQL    | `localhost:5432`         | Base de datos           |
+| pgAdmin       | `localhost:5050`         | Administración BD       |
+| Prometheus    | `localhost:9090`         | Métricas                |
+| Grafana       | `localhost:3000`         | Dashboards              |
+| Locust        | `localhost:8089`         | Pruebas de carga        |
+
+---
+
+# 9. Uso básico
+
+## Health Check
+
+```http
+GET /health
+```
+
+Respuesta:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+## Health Check de PostgreSQL
+
+```http
+GET /health/db
+```
+
+Respuesta:
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+---
+
+## Cuentas
+
+Consultar cuentas:
+
+```http
+GET /accounts/
+```
+
+Crear una cuenta:
+
+```http
+POST /accounts/
+```
 
 Ejemplo:
 
-```text
-Saldo = 1000
-
-Transferencia A → 700
-Transferencia B → 600
+```json
+{
+  "account_number": "1000000001",
+  "customer_ref": "CUSTOMER-001",
+  "initial_balance": 1000,
+  "currency": "USD"
+}
 ```
 
-Ambas operaciones no deben poder utilizar simultáneamente el mismo saldo disponible.
+El backend controla el saldo inicial y evita cuentas duplicadas.
 
-Para esto se utilizarán transacciones de PostgreSQL y bloqueo de filas.
+---
 
-Conceptualmente:
+# 10. Transferencias
+
+Crear una transferencia:
+
+```http
+POST /transactions/
+```
+
+Ejemplo:
+
+```json
+{
+  "source_account_id": "UUID_ORIGEN",
+  "destination_account_id": "UUID_DESTINO",
+  "amount": 100
+}
+```
+
+La solicitud debe incluir:
+
+```text
+Idempotency-Key: transfer-001
+```
+
+El flujo transaccional es:
+
+```text
+Validación
+    ↓
+Idempotencia
+    ↓
+Bloqueo de cuentas
+    ↓
+Validación de saldo
+    ↓
+Débito / Crédito
+    ↓
+Crear Transaction
+    ↓
+Crear Outbox Event
+    ↓
+COMMIT
+```
+
+La transferencia y el evento Outbox se confirman dentro de la misma transacción de PostgreSQL.
+
+---
+
+# 11. Concurrencia e idempotencia
+
+Para evitar condiciones de carrera se utilizan transacciones de PostgreSQL y bloqueo de filas:
 
 ```sql
 SELECT ...
@@ -412,212 +394,248 @@ WHERE id = ...
 FOR UPDATE;
 ```
 
-El orden general será:
+Cuando una transferencia involucra dos cuentas, estas se bloquean siguiendo un orden determinista para reducir el riesgo de deadlocks.
 
-```text
-BEGIN
-   ↓
-LOCK
-   ↓
-Verificar saldo
-   ↓
-Actualizar cuentas
-   ↓
-Registrar transferencia
-   ↓
-Crear Outbox
-   ↓
-COMMIT
-```
+La idempotencia se controla mediante `Idempotency-Key`.
+
+Una misma clave no debe crear una segunda transferencia.
 
 ---
 
-# 9. Deadlocks
+# 12. Outbox y Bancs
 
-Cuando una transferencia involucre dos cuentas, ambas cuentas deberán bloquearse siguiendo un orden determinista.
-
-Por ejemplo:
+El patrón Outbox permite separar la transferencia de la comunicación con el sistema legado.
 
 ```text
-UUID menor
-    ↓
-UUID mayor
-```
-
-Esto reduce el riesgo de que dos transacciones bloqueen las mismas cuentas en órdenes diferentes.
-
----
-
-# 10. Idempotencia
-
-Las transferencias utilizarán:
-
-```text
-idempotency_key
-```
-
-para evitar que una misma solicitud sea procesada dos veces accidentalmente.
-
-Ejemplo:
-
-```text
-Request 1
-idempotency_key = ABC123
-      ↓
-Transferencia creada
-
-Request 2
-idempotency_key = ABC123
-      ↓
-No crear otra transferencia
-```
-
-La idempotencia será implementada antes de considerar terminada la lógica de transferencias.
-
----
-
-# 11. Outbox Pattern
-
-La creación de una transferencia y su evento Outbox deben formar parte de la misma transacción de PostgreSQL.
-
-Conceptualmente:
-
-```text
-BEGIN
+FastAPI
    │
-   ├── Actualizar cuenta origen
-   ├── Actualizar cuenta destino
-   ├── Crear transaction
-   └── Crear outbox_event
-          │
-          ▼
-       COMMIT
+   ▼
+PostgreSQL
+   │
+   ▼
+Outbox Event
+   │
+   ▼
+Worker
+   │
+   ▼
+Bancs Mock
 ```
 
-Si alguna operación falla:
+El Worker procesa eventos `PENDING` y utiliza:
+
+```sql
+FOR UPDATE SKIP LOCKED
+```
+
+para evitar que varios Workers procesen simultáneamente el mismo evento.
+
+Los errores recuperables utilizan reintentos:
 
 ```text
-ROLLBACK
+Fallo 1 → 2 segundos
+Fallo 2 → 4 segundos
+Fallo 3 → FAILED
 ```
 
-De esta forma no debe existir una transferencia confirmada sin su evento correspondiente.
+Bancs Mock permite simular respuestas HTTP `400`, `500` y `503`.
 
 ---
 
-# 12. Inteligencia Artificial
+# 13. Inteligencia Artificial
 
-Las recomendaciones financieras no deben bloquear una transferencia.
-
-El flujo será:
+El procesamiento de IA se realiza mediante un Worker independiente:
 
 ```text
-Transferencia
-      │
-      ▼
-COMMIT
-      │
-      ▼
-Procesamiento asíncrono
-      │
-      ▼
+Datos
+  ↓
+AI Worker
+  ↓
 Gemini API
-      │
-      ▼
+  ↓
 ai_recommendations
 ```
 
-La caída o indisponibilidad de Gemini no debe provocar que una transferencia válida sea revertida.
+La IA no bloquea la transferencia bancaria.
+
+La transferencia puede completarse aunque Gemini no esté disponible.
 
 ---
 
-# 13. Seguridad
+# 14. ETL
 
-El proyecto debe considerar desde el desarrollo:
+El proyecto incluye un proceso ETL independiente:
 
-* Validación de entradas.
-* Integridad mediante restricciones de PostgreSQL.
-* Uso de transacciones.
-* Control de concurrencia.
-* Idempotencia.
-* Manejo seguro de errores.
-* No exposición de errores internos.
-* Protección de credenciales.
-* Variables de entorno para secretos.
-* No almacenar `.env` en Git.
-* No permitir que el cliente modifique directamente saldos.
-* Validación de estados de las cuentas.
+```text
+Datos RAW
+   ↓
+Pandas / ETL
+   ↓
+Datos limpios
+   +
+Datos rechazados
+```
 
-El proyecto es un MVP y no debe declararse como listo para producción mientras falten mecanismos como autenticación, autorización, rate limiting y otros controles necesarios.
+Ejecutar:
 
----
+```bash
+python etl/etl.py
+```
 
-# 14. Roadmap
+Archivos generados:
 
-El desarrollo se realizará progresivamente:
+```text
+etl/data/processed/transactions_clean.csv
+etl/data/processed/transactions_rejected.csv
+```
 
-### Fase 1 — Cuentas
+La exploración de datos se encuentra en:
 
-* [] Modelo Account.
-* [] GET `/accounts/`.
-* [] POST `/accounts/`.
-* [] Validación Pydantic.
-* [] Manejo de duplicados.
-
-### Fase 2 — Transacciones
-
-* [ ] Modelo Transaction.
-* [ ] Schemas de Transaction.
-* [ ] Endpoint de transferencia.
-* [ ] Validación de cuentas.
-* [ ] Validación de saldo.
-* [ ] Actualización atómica de saldos.
-* [ ] Registro de transacciones.
-
-### Fase 3 — Concurrencia
-
-* [ ] Row locking.
-* [ ] Prevención de race conditions.
-* [ ] Orden determinista de locks.
-* [ ] Manejo de deadlocks.
-* [ ] Pruebas concurrentes.
-
-### Fase 4 — Idempotencia
-
-* [ ] Idempotency key.
-* [ ] Prevención de transferencias duplicadas.
-* [ ] Manejo de reintentos.
-
-### Fase 5 — Outbox
-
-* [ ] Modelo OutboxEvent.
-* [ ] Creación atómica del evento.
-* [ ] Worker.
-* [ ] Reintentos.
-* [ ] Manejo de errores.
-
-### Fase 6 — Bancs Mock
-
-* [ ] Mock de Bancs.
-* [ ] Integración mediante worker.
-* [ ] Simulación de errores.
-* [ ] Reintentos.
-
-
+```text
+etl/notebooks/exploracion_data.ipynb
+```
 
 ---
 
-# 15. Principio de desarrollo
+# 15. Observabilidad
 
-El proyecto se desarrollará de manera incremental.
+FastAPI expone métricas en:
 
-No se implementará toda la arquitectura de una sola vez.
+```text
+http://localhost:8000/metrics
+```
 
-Cada funcionalidad deberá:
+Prometheus las recopila y Grafana permite visualizarlas.
 
-1. Implementarse.
-2. Revisarse.
-3. Probarse.
-4. Documentarse cuando corresponda.
-5. Registrarse mediante un commit convencional.
+Se pueden observar, entre otras:
 
-El código debe mantenerse sencillo, entendible y consistente con el nivel de un desarrollador junior que conoce las tecnologías utilizadas.
+* número de solicitudes;
+* solicitudes por endpoint;
+* códigos HTTP;
+* tasa de solicitudes;
+* duración de solicitudes;
+* latencia promedio;
+* P95 de latencia.
+
+---
+
+# 16. Pruebas
+
+## Prueba de concurrencia
+
+Ejecutar:
+
+```bash
+python test_concurrency.py
+```
+
+Esta prueba realiza transferencias concurrentes y verifica la consistencia de los saldos.
+
+---
+
+## Prueba de carga
+
+Instalar Locust:
+
+```bash
+pip install locust
+```
+
+Ejecutar:
+
+```bash
+locust -f load_test.py
+```
+
+Abrir:
+
+```text
+http://localhost:8089
+```
+
+En las pruebas locales se obtuvieron como referencia:
+
+```text
+30 usuarios concurrentes
+827 transacciones
+0 errores
+41.5 transacciones/segundo
+P95 = 1.9 segundos
+```
+
+Al aumentar la concurrencia a 40 usuarios, el P95 observado fue de aproximadamente 2.8 segundos.
+
+Estos resultados corresponden al entorno local utilizado durante el desarrollo. **No representan una capacidad demostrada de 10.000 TPS.**
+
+El objetivo de 10.000 TPS se aborda como requisito de escalabilidad mediante una arquitectura que podría distribuir la carga entre múltiples instancias de API y Workers, junto con una infraestructura y base de datos adecuadamente dimensionadas.
+
+---
+
+# 17. Estructura del proyecto
+
+```text
+Reto_SmartBancs/
+│
+├── backend/             # API FastAPI
+├── worker/              # Worker de Outbox/Bancs
+├── bancs-mock/          # Simulación de Bancs
+├── ai-worker/           # Procesamiento de IA
+├── etl/                 # Procesamiento ETL
+├── monitoring/          # Configuración Prometheus
+├── database/            # Recursos de BD
+├── load_test.py         # Prueba de carga
+├── test_concurrency.py  # Prueba concurrente
+├── docker-compose.yml
+├── .env.example
+├── .gitignore
+└── Readme.md
+```
+
+---
+
+# 18. Detener el proyecto
+
+Detener los servicios:
+
+```bash
+docker compose down
+```
+
+Para eliminar también los datos persistidos:
+
+```bash
+docker compose down -v
+```
+
+> `docker compose down -v` elimina los volúmenes de Docker y, por lo tanto, los datos almacenados en PostgreSQL.
+
+---
+
+# 19. Limitaciones
+
+Este proyecto es un **MVP desarrollado para evaluación técnica**.
+
+Entre sus principales limitaciones:
+
+* Bancs está representado mediante un Mock.
+* Las pruebas de carga fueron realizadas en un entorno local.
+* Los 10.000 TPS corresponden a un objetivo de escalabilidad, no a una capacidad medida.
+* FastAPI se ejecuta actualmente fuera de Docker.
+* No se implementa autenticación ni autorización.
+* No se implementa alta disponibilidad.
+* La API Key de Gemini depende de un servicio externo.
+
+Estos aspectos forman parte de las consideraciones para una implementación productiva.
+
+---
+
+## Referencias
+
+* [FastAPI](https://fastapi.tiangolo.com/)
+* [PostgreSQL](https://www.postgresql.org/docs/)
+* [Docker Compose](https://docs.docker.com/compose/)
+* [Prometheus](https://prometheus.io/docs/)
+* [Grafana](https://grafana.com/docs/)
+* [Locust](https://docs.locust.io/)
+* [Pandas](https://pandas.pydata.org/docs/)
+* [Google Gemini API](https://ai.google.dev/)
