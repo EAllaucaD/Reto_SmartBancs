@@ -33,38 +33,7 @@ El objetivo no es presentar una plataforma bancaria lista para producción, sino
 
 # 2. Arquitectura
 
-Flujo principal:
-
-```text
-Cliente
-   │
-   ▼
-FastAPI
-   │
-   ▼
-PostgreSQL
-   │
-   ├── Transaction
-   │
-   └── Outbox Event
-          │
-          ▼
-        Worker
-          │
-          ▼
-      Bancs Mock
-```
-
-Procesamiento adicional:
-
-```text
-PostgreSQL ──► AI Worker ──► Gemini API
-     │
-     └────────► Prometheus ──► Grafana
-```
-
-El procesamiento de Bancs y de Inteligencia Artificial se mantiene fuera del camino crítico de la transferencia.
-
+![Arquitectura de SmartBancs](docs/images/Arquitectura.png)
 ---
 
 # 3. Tecnologías
