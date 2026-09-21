@@ -29,7 +29,18 @@ El MVP integra los siguientes conceptos:
 
 El objetivo no es presentar una plataforma bancaria lista para producción, sino demostrar criterios de arquitectura, desarrollo, integración, concurrencia, observabilidad y escalabilidad.
 
+
+
+
+# ENTREGABLES:
+
+📎 Informe técnico, presentación y video demostrativo en la siguiente ruta de carpeta: **[ver docs/entregable/enlaces.md](docs/entregable/enlaces.md)**
+
+
+
 ---
+
+
 
 # 2. Arquitectura
 
