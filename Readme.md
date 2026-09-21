@@ -715,11 +715,14 @@ http://localhost:8089
 En las pruebas locales se obtuvieron como referencia:
 
 ```text
-30 usuarios concurrentes
-827 transacciones
-0 errores
-41.5 transacciones/segundo
-P95 = 1.9 segundos
+En una primera ejecución, con 30 usuarios concurrentes y un spawn rate de 10, se obtuvieron:
+•	4.781 solicitudes.
+•	0 errores.
+•	35 transacciones por segundo.
+•	P95 de 2,0 segundos.
+•	P99 de 2,6 segundos.
+•	Tiempo promedio de 867,8 ms.
+
 ```
 
 Al aumentar la concurrencia a 40 usuarios, el P95 observado fue de aproximadamente 2.8 segundos.
